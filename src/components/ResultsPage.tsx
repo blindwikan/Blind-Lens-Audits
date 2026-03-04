@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
 import { Shield, AlertTriangle, AlertCircle, Info, Eye, ArrowLeft, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { AuditResult } from "@/lib/api/audit";
 
 interface ResultsPageProps {
-  url: string;
+  result: AuditResult;
   onBack: () => void;
 }
 
@@ -12,38 +13,6 @@ const severityConfig = {
   Serious: { icon: AlertCircle, className: "text-warning bg-warning/10 border-warning/20" },
   Moderate: { icon: Info, className: "text-info bg-info/10 border-info/20" },
   Minor: { icon: Info, className: "text-muted-foreground bg-muted border-border" },
-};
-
-const mockFixes = [
-  { severity: "Critical" as const, title: "Missing alt text on 12 images", description: "Screen readers announce these as unlabelled images, making content inaccessible." },
-  { severity: "Critical" as const, title: "No skip navigation link", description: "Users must tab through the entire header on every page load." },
-  { severity: "Critical" as const, title: "Form inputs lack associated labels", description: "Screen reader users cannot identify what information to enter." },
-  { severity: "Serious" as const, title: "Insufficient color contrast on body text", description: "Text fails WCAG AA contrast ratio requirements of 4.5:1." },
-  { severity: "Serious" as const, title: "Interactive elements not keyboard accessible", description: "Custom buttons and dropdowns cannot be activated via keyboard." },
-  { severity: "Serious" as const, title: "Missing ARIA landmarks", description: "Page lacks main, nav, and complementary landmarks for navigation." },
-  { severity: "Moderate" as const, title: "Heading hierarchy is broken", description: "Jumps from H1 to H4 confuse the document structure for screen readers." },
-  { severity: "Moderate" as const, title: "Links lack descriptive text", description: "Multiple 'click here' and 'read more' links provide no context." },
-  { severity: "Minor" as const, title: "Missing language attribute on HTML element", description: "Screen readers may use incorrect pronunciation rules." },
-  { severity: "Minor" as const, title: "Redundant ARIA roles on semantic elements", description: "Native HTML elements already convey their role without explicit ARIA." },
-];
-
-const mockCommentary = [
-  "When I land on this page, my screen reader announces nothing meaningful — no heading, no landmark, just a wall of unlabelled content. I have no idea what this site is about.",
-  "The navigation feels like a maze. There's no skip link, so every single time I return to the homepage, I have to tab through 30+ items before reaching the content I actually want.",
-  "Several buttons are completely invisible to me. They're styled divs with click handlers but no semantic meaning — I don't know they exist, let alone what they do.",
-  "The forms are a guessing game. Without labels, I'm typing into mystery fields and hoping I've entered my email in the right place. This isn't just inconvenient — it's exclusionary.",
-];
-
-const wcagSummary = {
-  score: "34/100",
-  level: "Does not meet WCAG 2.1 AA",
-  violations: 47,
-  categories: [
-    { name: "Perceivable", score: 28, max: 100 },
-    { name: "Operable", score: 35, max: 100 },
-    { name: "Understandable", score: 52, max: 100 },
-    { name: "Robust", score: 21, max: 100 },
-  ],
 };
 
 const container = {
@@ -56,7 +25,9 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
-const ResultsPage = ({ url, onBack }: ResultsPageProps) => {
+const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
+  const { wcagSummary, fixes, commentary, url } = result;
+
   return (
     <div className="min-h-screen bg-background py-8 px-6">
       <div className="max-w-4xl mx-auto">
@@ -98,7 +69,7 @@ const ResultsPage = ({ url, onBack }: ResultsPageProps) => {
           </h2>
           <div className="bg-card border border-border rounded-2xl p-6 md:p-8">
             <div className="flex flex-col md:flex-row md:items-center gap-6 mb-8">
-              <div className="text-5xl font-heading font-bold text-destructive">{wcagSummary.score}</div>
+              <div className="text-5xl font-heading font-bold text-destructive">{wcagSummary.score}/100</div>
               <div>
                 <p className="text-lg font-semibold text-foreground">{wcagSummary.level}</p>
                 <p className="text-muted-foreground">{wcagSummary.violations} violations found</p>
@@ -123,7 +94,7 @@ const ResultsPage = ({ url, onBack }: ResultsPageProps) => {
           </div>
         </motion.section>
 
-        {/* Top 10 Fixes */}
+        {/* Top Fixes */}
         <motion.section
           variants={container}
           initial="hidden"
@@ -133,15 +104,15 @@ const ResultsPage = ({ url, onBack }: ResultsPageProps) => {
         >
           <h2 id="fixes-heading" className="text-2xl font-heading font-bold text-foreground mb-6 flex items-center gap-3">
             <AlertTriangle className="w-6 h-6 text-warning" aria-hidden="true" />
-            Top 10 Prioritized Fixes
+            Top {fixes.length} Prioritized Fixes
           </h2>
           <ol className="space-y-3" aria-label="Prioritized accessibility fixes">
-            {mockFixes.map((fix, i) => {
-              const config = severityConfig[fix.severity];
+            {fixes.map((fix, i) => {
+              const config = severityConfig[fix.severity] || severityConfig.Minor;
               const Icon = config.icon;
               return (
                 <motion.li key={i} variants={item}>
-                  <div className={`bg-card border rounded-xl p-5 ${config.className.includes('border') ? '' : 'border-border'}`}>
+                  <div className="bg-card border border-border rounded-xl p-5">
                     <div className="flex items-start gap-4">
                       <span className="font-heading font-bold text-muted-foreground text-sm mt-1 w-6 shrink-0">
                         {i + 1}.
@@ -177,7 +148,7 @@ const ResultsPage = ({ url, onBack }: ResultsPageProps) => {
             Blind Lens Commentary
           </h2>
           <div className="space-y-4">
-            {mockCommentary.map((comment, i) => (
+            {commentary.map((comment, i) => (
               <motion.blockquote
                 key={i}
                 initial={{ opacity: 0, x: -10 }}
