@@ -4,9 +4,9 @@ import { Eye, Check, Loader2, Circle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 const STEPS = [
-  "Scraping website content",
-  "Analyzing accessibility",
-  "Generating report",
+  "Running PageSpeed accessibility audit",
+  "Wikan is interpreting the results",
+  "Generating your Blind Lens report",
 ];
 
 const STEP_DELAYS = [0, 3000, 8000];
