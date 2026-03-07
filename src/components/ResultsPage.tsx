@@ -116,12 +116,7 @@ const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
                   <div className="bg-card border border-border rounded-xl p-5">
                     <div className="flex flex-wrap items-center gap-2 mb-3">
                       <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${config.className}`}>
-                        {issue.severity.split(' ')[0]}
-                        {' '}
-                        {config.label.split('—')[0].trim().replace(/^(Red Flag|It's Complicated|Minor Ick)/, '')}
-                        {issue.severity.includes('Red Flag') && 'Red Flag'}
-                        {issue.severity.includes('Complicated') && "It's Complicated"}
-                        {issue.severity.includes('Minor') && 'Minor Ick'}
+                        {issue.severity}
                       </span>
                       <h3 className="font-semibold text-foreground">{issue.title}</h3>
                     </div>
