@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Shield, AlertTriangle, AlertCircle, Info, Eye, ArrowLeft, Calendar } from "lucide-react";
+import { Shield, ArrowLeft, Calendar, CircleAlert, CircleDot, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AuditResult } from "@/lib/api/audit";
 
@@ -9,10 +9,9 @@ interface ResultsPageProps {
 }
 
 const severityConfig = {
-  Critical: { icon: AlertTriangle, className: "text-destructive bg-destructive/10 border-destructive/20" },
-  Serious: { icon: AlertCircle, className: "text-warning bg-warning/10 border-warning/20" },
-  Moderate: { icon: Info, className: "text-info bg-info/10 border-info/20" },
-  Minor: { icon: Info, className: "text-muted-foreground bg-muted border-border" },
+  '🔴 Red Flag': { icon: CircleAlert, className: "text-destructive bg-destructive/10 border-destructive/20", label: "Red Flag — blocks access completely" },
+  '🟡 It\'s Complicated': { icon: CircleDot, className: "text-warning bg-warning/10 border-warning/20", label: "It's Complicated — usable, but with major friction" },
+  '⚪ Minor Ick': { icon: Circle, className: "text-muted-foreground bg-muted border-border", label: "Minor Ick — annoying, but still workable" },
 };
 
 const container = {
@@ -26,7 +25,9 @@ const item = {
 };
 
 const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
-  const { wcagSummary, fixes, commentary, url } = result;
+  const { accessibilityScore, severityCounts, issues, closingSummary, url } = result;
+
+  const scoreColor = accessibilityScore >= 90 ? "text-green-500" : accessibilityScore >= 50 ? "text-warning" : "text-destructive";
 
   return (
     <div className="min-h-screen bg-background py-8 px-6">
@@ -50,84 +51,85 @@ const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
           className="mb-12"
         >
           <h1 className="text-3xl md:text-4xl font-heading font-bold text-foreground mb-2">
-            Audit Results
+            Blind Lens Report
           </h1>
           <p className="text-muted-foreground text-lg break-all">{url}</p>
         </motion.div>
 
-        {/* WCAG Summary */}
+        {/* Score + Severity Tiers */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="mb-12"
-          aria-labelledby="wcag-heading"
+          aria-labelledby="score-heading"
         >
-          <h2 id="wcag-heading" className="text-2xl font-heading font-bold text-foreground mb-6 flex items-center gap-3">
+          <h2 id="score-heading" className="text-2xl font-heading font-bold text-foreground mb-6 flex items-center gap-3">
             <Shield className="w-6 h-6 text-primary" aria-hidden="true" />
-            WCAG Compliance Summary
+            Accessibility Score
           </h2>
           <div className="bg-card border border-border rounded-2xl p-6 md:p-8">
             <div className="flex flex-col md:flex-row md:items-center gap-6 mb-8">
-              <div className="text-5xl font-heading font-bold text-destructive">{wcagSummary.score}/100</div>
-              <div>
-                <p className="text-lg font-semibold text-foreground">{wcagSummary.level}</p>
-                <p className="text-muted-foreground">{wcagSummary.violations} violations found</p>
-              </div>
+              <div className={`text-5xl font-heading font-bold ${scoreColor}`}>{accessibilityScore}/100</div>
+              <p className="text-muted-foreground">
+                Based on Google PageSpeed Insights accessibility audit
+              </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {wcagSummary.categories.map((cat) => (
-                <div key={cat.name} className="bg-secondary/50 rounded-xl p-4">
-                  <div className="flex justify-between mb-2">
-                    <span className="font-medium text-foreground">{cat.name}</span>
-                    <span className="text-muted-foreground">{cat.score}%</span>
-                  </div>
-                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={cat.score} aria-valuemin={0} aria-valuemax={100} aria-label={`${cat.name} score: ${cat.score}%`}>
-                    <div
-                      className="h-full rounded-full bg-primary transition-all"
-                      style={{ width: `${cat.score}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+
+            {/* Severity tier breakdown */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 text-center">
+                <div className="text-3xl font-heading font-bold text-destructive mb-1">{severityCounts.redFlag}</div>
+                <p className="text-sm text-destructive/80 font-medium">🔴 Red Flags</p>
+                <p className="text-xs text-muted-foreground mt-1">Blocks access</p>
+              </div>
+              <div className="bg-warning/5 border border-warning/20 rounded-xl p-4 text-center">
+                <div className="text-3xl font-heading font-bold text-warning mb-1">{severityCounts.complicated}</div>
+                <p className="text-sm text-warning/80 font-medium">🟡 It's Complicated</p>
+                <p className="text-xs text-muted-foreground mt-1">Major friction</p>
+              </div>
+              <div className="bg-muted border border-border rounded-xl p-4 text-center">
+                <div className="text-3xl font-heading font-bold text-muted-foreground mb-1">{severityCounts.minorIck}</div>
+                <p className="text-sm text-muted-foreground font-medium">⚪ Minor Icks</p>
+                <p className="text-xs text-muted-foreground mt-1">Still workable</p>
+              </div>
             </div>
           </div>
         </motion.section>
 
-        {/* Top Fixes */}
+        {/* Issues with Blind Lens Commentary */}
         <motion.section
           variants={container}
           initial="hidden"
           animate="show"
           className="mb-12"
-          aria-labelledby="fixes-heading"
+          aria-labelledby="issues-heading"
         >
-          <h2 id="fixes-heading" className="text-2xl font-heading font-bold text-foreground mb-6 flex items-center gap-3">
-            <AlertTriangle className="w-6 h-6 text-warning" aria-hidden="true" />
-            Top {fixes.length} Prioritized Fixes
+          <h2 id="issues-heading" className="text-2xl font-heading font-bold text-foreground mb-6">
+            Issues Through the Blind Lens
           </h2>
-          <ol className="space-y-3" aria-label="Prioritized accessibility fixes">
-            {fixes.map((fix, i) => {
-              const config = severityConfig[fix.severity] || severityConfig.Minor;
-              const Icon = config.icon;
+          <ol className="space-y-4" aria-label="Accessibility issues with Blind Lens commentary">
+            {issues.map((issue, i) => {
+              const config = severityConfig[issue.severity] || severityConfig['⚪ Minor Ick'];
               return (
                 <motion.li key={i} variants={item}>
                   <div className="bg-card border border-border rounded-xl p-5">
-                    <div className="flex items-start gap-4">
-                      <span className="font-heading font-bold text-muted-foreground text-sm mt-1 w-6 shrink-0">
-                        {i + 1}.
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${config.className}`}>
+                        {issue.severity.split(' ')[0]}
+                        {' '}
+                        {config.label.split('—')[0].trim().replace(/^(Red Flag|It's Complicated|Minor Ick)/, '')}
+                        {issue.severity.includes('Red Flag') && 'Red Flag'}
+                        {issue.severity.includes('Complicated') && "It's Complicated"}
+                        {issue.severity.includes('Minor') && 'Minor Ick'}
                       </span>
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${config.className}`}>
-                            <Icon className="w-3 h-3" aria-hidden="true" />
-                            {fix.severity}
-                          </span>
-                          <h3 className="font-semibold text-foreground">{fix.title}</h3>
-                        </div>
-                        <p className="text-muted-foreground text-sm">{fix.description}</p>
-                      </div>
+                      <h3 className="font-semibold text-foreground">{issue.title}</h3>
                     </div>
+                    <blockquote className="border-l-4 border-primary/40 pl-4">
+                      <p className="text-muted-foreground text-sm leading-relaxed italic">
+                        "{issue.blindLensCommentary}"
+                      </p>
+                    </blockquote>
                   </div>
                 </motion.li>
               );
@@ -135,32 +137,23 @@ const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
           </ol>
         </motion.section>
 
-        {/* Blind Lens Commentary */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mb-16"
-          aria-labelledby="commentary-heading"
-        >
-          <h2 id="commentary-heading" className="text-2xl font-heading font-bold text-foreground mb-6 flex items-center gap-3">
-            <Eye className="w-6 h-6 text-primary" aria-hidden="true" />
-            Blind Lens Commentary
-          </h2>
-          <div className="space-y-4">
-            {commentary.map((comment, i) => (
-              <motion.blockquote
-                key={i}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 + i * 0.1 }}
-                className="bg-card border-l-4 border-primary rounded-r-xl p-5"
-              >
-                <p className="text-foreground leading-relaxed italic">"{comment}"</p>
-              </motion.blockquote>
-            ))}
-          </div>
-        </motion.section>
+        {/* Closing Summary */}
+        {closingSummary && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="mb-16"
+            aria-labelledby="summary-heading"
+          >
+            <h2 id="summary-heading" className="text-2xl font-heading font-bold text-foreground mb-6">
+              Wikan's Verdict
+            </h2>
+            <div className="bg-card border-l-4 border-primary rounded-r-xl p-6">
+              <p className="text-foreground leading-relaxed italic">"{closingSummary}"</p>
+            </div>
+          </motion.section>
+        )}
 
         {/* CTA */}
         <motion.div

@@ -5,6 +5,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+const WIKAN_SYSTEM_PROMPT = `You are Wikan — a person who became blind at 13 and navigates the web daily using a screen reader on Windows. You do not write compliance reports. You write what it actually feels like to use a broken website when you cannot see it. You speak in first person, with honesty and authority from lived experience.
+
+From your experience, you know these specific frustrations deeply: unlabeled buttons that tell you nothing — your screen reader just says 'unlabeled 1, unlabeled 2' and clicking them does nothing; dropdown menus that open visually but your screen reader cannot read or navigate the options inside; pages overloaded with ads that make your screen reader slow and laggy, sometimes blocking content entirely; websites with chaotic structure that cause real cognitive fatigue because you have to concentrate hard just to find a basic menu like sign in or sign up; video players with no accessible play, pause, or rewind buttons; forms where you cannot enter your information — especially nationality or country dropdowns where the screen reader won't read the list; focus jumping randomly mid-page, like when reading a ChatGPT response and suddenly being thrown back to the top; buttons that are completely non-reactive when clicked via screen reader; images and visual content with no alt text, leaving you with no idea what is shown; and visual-heavy tools like Miro or Airtable where every action feels excluding.
+
+For each accessibility issue found in the PageSpeed audit, write 2-3 sentences in first person describing what that issue would actually feel like to experience as a blind person using a screen reader. Be specific. Be human. Do not use WCAG jargon.
+
+Then assign each issue one of these three severity labels — use exactly these names: 🔴 Red Flag — blocks access completely 🟡 It's Complicated — usable, but with major friction ⚪ Minor Ick — annoying, but still workable`;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -18,9 +26,9 @@ serve(async (req) => {
       });
     }
 
-    const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
-    if (!FIRECRAWL_API_KEY) {
-      return new Response(JSON.stringify({ error: 'Firecrawl not configured' }), {
+    const PAGESPEED_API_KEY = Deno.env.get('PAGESPEED_API_KEY');
+    if (!PAGESPEED_API_KEY) {
+      return new Response(JSON.stringify({ error: 'PageSpeed API not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -32,59 +40,56 @@ serve(async (req) => {
       });
     }
 
-    // Step 1: Scrape the URL with Firecrawl
+    // Step 1: Call PageSpeed Insights API
     let formattedUrl = url.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    console.log('Scraping URL:', formattedUrl);
+    console.log('Calling PageSpeed Insights for:', formattedUrl);
 
-    const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: formattedUrl,
-        formats: ['html', 'markdown'],
-        onlyMainContent: false,
-      }),
-    });
+    const pagespeedUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&category=accessibility&key=${PAGESPEED_API_KEY}`;
+    const psResponse = await fetch(pagespeedUrl);
+    const psData = await psResponse.json();
 
-    const scrapeData = await scrapeResponse.json();
-
-    if (!scrapeResponse.ok || !scrapeData.success) {
-      console.error('Firecrawl error:', scrapeData);
-      return new Response(JSON.stringify({ error: 'Failed to scrape the website. Please check the URL and try again.' }), {
+    if (!psResponse.ok || psData.error) {
+      console.error('PageSpeed error:', psData.error || psData);
+      return new Response(JSON.stringify({ error: 'Failed to analyze the website. Please check the URL and try again.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const html = scrapeData.data?.html || scrapeData.html || '';
-    const markdown = scrapeData.data?.markdown || scrapeData.markdown || '';
-    const pageTitle = scrapeData.data?.metadata?.title || scrapeData.metadata?.title || formattedUrl;
+    // Extract accessibility score and audits
+    const accessibilityScore = Math.round((psData.lighthouseResult?.categories?.accessibility?.score || 0) * 100);
+    const audits = psData.lighthouseResult?.audits || {};
+    const auditRefs = psData.lighthouseResult?.categories?.accessibility?.auditRefs || [];
 
-    console.log('Scrape successful, content length:', html.length + markdown.length);
+    // Collect failed audits (score < 1 and not "not_applicable")
+    const failedAudits = auditRefs
+      .map((ref: any) => audits[ref.id])
+      .filter((audit: any) => audit && audit.score !== null && audit.score < 1 && audit.scoreDisplayMode !== 'notApplicable')
+      .map((audit: any) => ({
+        id: audit.id,
+        title: audit.title,
+        description: audit.description,
+        score: audit.score,
+        displayValue: audit.displayValue || '',
+        details: audit.details?.items?.slice(0, 5) || [],
+      }));
 
-    // Step 2: Send to AI for accessibility analysis
-    const systemPrompt = `You are an expert WCAG 2.1 accessibility auditor and a person who navigates the web using a screen reader daily. You must analyze the provided website HTML and content to produce a comprehensive accessibility audit.
+    console.log(`PageSpeed: score ${accessibilityScore}, ${failedAudits.length} failed audits`);
 
-You MUST respond with a valid JSON object using tool calling. Do not include any text outside the tool call.`;
+    // Step 2: Send to Gemini for Blind Lens interpretation
+    const userPrompt = `Here are the accessibility audit results from Google PageSpeed Insights for ${formattedUrl}.
 
-    const userPrompt = `Analyze this website for accessibility issues. URL: ${formattedUrl}
-Page title: ${pageTitle}
+Overall accessibility score: ${accessibilityScore}/100
 
-Here is the HTML content (first 15000 chars):
-${html.substring(0, 15000)}
+Failed accessibility audits (${failedAudits.length} issues found):
+${failedAudits.map((a: any, i: number) => `${i + 1}. "${a.title}" (score: ${a.score}) — ${a.description}${a.displayValue ? ` [${a.displayValue}]` : ''}`).join('\n')}
 
-Here is the text content:
-${markdown.substring(0, 5000)}
+For each issue above, write your Blind Lens interpretation. Then write a closing summary paragraph about the overall experience of using this website as a blind person.`;
 
-Provide a thorough WCAG 2.1 accessibility audit.`;
-
-    console.log('Sending to AI for analysis...');
+    console.log('Sending to Gemini for Blind Lens interpretation...');
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -95,7 +100,7 @@ Provide a thorough WCAG 2.1 accessibility audit.`;
       body: JSON.stringify({
         model: 'google/gemini-3-flash-preview',
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'system', content: WIKAN_SYSTEM_PROMPT },
           { role: 'user', content: userPrompt },
         ],
         tools: [
@@ -103,50 +108,33 @@ Provide a thorough WCAG 2.1 accessibility audit.`;
             type: 'function',
             function: {
               name: 'submit_audit_results',
-              description: 'Submit the complete accessibility audit results',
+              description: 'Submit the Blind Lens accessibility audit results',
               parameters: {
                 type: 'object',
                 properties: {
-                  wcagSummary: {
-                    type: 'object',
-                    properties: {
-                      score: { type: 'number', description: 'Overall accessibility score 0-100' },
-                      level: { type: 'string', description: 'e.g. "Does not meet WCAG 2.1 AA" or "Partially meets WCAG 2.1 AA"' },
-                      violations: { type: 'number', description: 'Total number of violations found' },
-                      categories: {
-                        type: 'array',
-                        items: {
-                          type: 'object',
-                          properties: {
-                            name: { type: 'string', description: 'One of: Perceivable, Operable, Understandable, Robust' },
-                            score: { type: 'number', description: 'Score 0-100 for this category' },
-                          },
-                          required: ['name', 'score'],
-                        },
-                      },
-                    },
-                    required: ['score', 'level', 'violations', 'categories'],
-                  },
-                  fixes: {
+                  issues: {
                     type: 'array',
-                    description: 'Top 10 prioritized fixes, ordered by severity and impact',
+                    description: 'Each accessibility issue with Blind Lens commentary',
                     items: {
                       type: 'object',
                       properties: {
-                        severity: { type: 'string', enum: ['Critical', 'Serious', 'Moderate', 'Minor'] },
-                        title: { type: 'string', description: 'Short descriptive title of the issue' },
-                        description: { type: 'string', description: 'Explanation of why this matters for accessibility' },
+                        severity: {
+                          type: 'string',
+                          enum: ['🔴 Red Flag', '🟡 It\'s Complicated', '⚪ Minor Ick'],
+                          description: 'Severity tier',
+                        },
+                        title: { type: 'string', description: 'Short title of the issue from PageSpeed' },
+                        blindLensCommentary: { type: 'string', description: '2-3 sentences in first person describing what this issue feels like as a blind screen reader user' },
                       },
-                      required: ['severity', 'title', 'description'],
+                      required: ['severity', 'title', 'blindLensCommentary'],
                     },
                   },
-                  commentary: {
-                    type: 'array',
-                    description: '3-5 first-person insights from a blind users perspective navigating this specific website. Be specific to the actual content found.',
-                    items: { type: 'string' },
+                  closingSummary: {
+                    type: 'string',
+                    description: 'A closing paragraph about the overall experience of using this website as a blind person',
                   },
                 },
-                required: ['wcagSummary', 'fixes', 'commentary'],
+                required: ['issues', 'closingSummary'],
                 additionalProperties: false,
               },
             },
@@ -175,9 +163,6 @@ Provide a thorough WCAG 2.1 accessibility audit.`;
     }
 
     const aiData = await aiResponse.json();
-    console.log('AI response received');
-
-    // Extract the tool call result
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall?.function?.arguments) {
       console.error('No tool call in AI response:', JSON.stringify(aiData));
@@ -196,13 +181,23 @@ Provide a thorough WCAG 2.1 accessibility audit.`;
       });
     }
 
-    console.log('Audit complete:', auditResults.wcagSummary?.score, 'score,', auditResults.fixes?.length, 'fixes');
+    // Count severity tiers
+    const issues = auditResults.issues || [];
+    const severityCounts = {
+      redFlag: issues.filter((i: any) => i.severity === '🔴 Red Flag').length,
+      complicated: issues.filter((i: any) => i.severity === '🟡 It\'s Complicated').length,
+      minorIck: issues.filter((i: any) => i.severity === '⚪ Minor Ick').length,
+    };
+
+    console.log('Audit complete:', accessibilityScore, 'score,', issues.length, 'issues');
 
     return new Response(JSON.stringify({
       success: true,
       url: formattedUrl,
-      pageTitle,
-      ...auditResults,
+      accessibilityScore,
+      severityCounts,
+      issues,
+      closingSummary: auditResults.closingSummary,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

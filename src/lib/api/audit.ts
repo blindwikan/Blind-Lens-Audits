@@ -1,30 +1,24 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export interface AuditFix {
-  severity: 'Critical' | 'Serious' | 'Moderate' | 'Minor';
+export interface AuditIssue {
+  severity: '🔴 Red Flag' | '🟡 It\'s Complicated' | '⚪ Minor Ick';
   title: string;
-  description: string;
+  blindLensCommentary: string;
 }
 
-export interface WcagCategory {
-  name: string;
-  score: number;
-}
-
-export interface WcagSummary {
-  score: number;
-  level: string;
-  violations: number;
-  categories: WcagCategory[];
+export interface SeverityCounts {
+  redFlag: number;
+  complicated: number;
+  minorIck: number;
 }
 
 export interface AuditResult {
   success: boolean;
   url: string;
-  pageTitle: string;
-  wcagSummary: WcagSummary;
-  fixes: AuditFix[];
-  commentary: string[];
+  accessibilityScore: number;
+  severityCounts: SeverityCounts;
+  issues: AuditIssue[];
+  closingSummary: string;
 }
 
 export async function runAudit(url: string): Promise<AuditResult> {
