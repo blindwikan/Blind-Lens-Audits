@@ -150,34 +150,36 @@ const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
           </motion.section>
         )}
 
-        {/* CTA */}
-        <motion.div
+        {/* Booking CTA */}
+        <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-          className="text-center pb-16"
+          transition={{ delay: 0.6 }}
+          className="mb-16"
+          aria-labelledby="cta-heading"
         >
-          <div className="separator-glow mb-12" aria-hidden="true" />
-          <h2 className="text-2xl md:text-3xl font-heading font-bold text-foreground mb-4">
-            Ready to make your site accessible?
-          </h2>
-          <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
-            Book a strategy session with Wikan to turn these findings into an actionable plan.
-          </p>
-          <Button
-            asChild
-            className="h-14 px-10 text-lg font-heading font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl glow-primary"
-          >
-            <a
-              href="https://cal.com"
-              target="_blank"
-              rel="noopener noreferrer"
+          <div className="bg-card border border-border rounded-2xl p-8 md:p-10 text-center">
+            <h2 id="cta-heading" className="text-2xl md:text-3xl font-heading font-bold text-foreground mb-3">
+              Want to fix this?
+            </h2>
+            <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
+              Book a 30-minute strategy call with Wikan and let's work through your accessibility issues together.
+            </p>
+            <Button
+              asChild
+              className="h-14 px-10 text-lg font-heading font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl glow-primary"
             >
-              <Calendar className="mr-2 w-5 h-5" aria-hidden="true" />
-              Get Your Strategy Session
-            </a>
-          </Button>
-        </motion.div>
+              <a
+                href="https://calendly.com/madewikandana97"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Calendar className="mr-2 w-5 h-5" aria-hidden="true" />
+                Book a Call
+              </a>
+            </Button>
+          </div>
+        </motion.section>
       </div>
     </div>
   );
