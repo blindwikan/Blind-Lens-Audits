@@ -13,7 +13,7 @@ const Hero = () => {
         >
           <Eye className="w-10 h-10 text-primary" aria-hidden="true" />
           <span className="text-3xl md:text-4xl font-heading font-bold tracking-tight text-foreground">
-            Blindly
+            Blind Audits
           </span>
         </motion.div>
 
