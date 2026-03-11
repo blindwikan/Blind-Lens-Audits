@@ -21,7 +21,7 @@ const AboutAuditor = () => {
             </h2>
           </div>
           <p className="text-muted-foreground leading-relaxed text-base md:text-lg">
-            Blindly is powered by Wikan — who became blind at 13, spent his career advancing
+            Blind Audits is powered by Wikan — who became blind at 13, spent his career advancing
             disability inclusion at UNICEF, and is now pursuing an MSc in Disability, Design and
             Innovation at UCL London. Every audit reflects not just technical compliance, but the
             real, daily experience of navigating the web without sight.
