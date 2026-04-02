@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
 import Hero from "@/components/Hero";
 import AboutAuditor from "@/components/AboutAuditor";
-import AuditForm from "@/components/AuditForm";
 import LoadingScreen from "@/components/LoadingScreen";
 import ResultsPage from "@/components/ResultsPage";
 import { runAudit, type AuditResult } from "@/lib/api/audit";
@@ -40,11 +39,9 @@ const Index = () => {
 
   return (
     <main className="min-h-screen bg-background">
-      <Hero />
+      <Hero onSubmit={handleSubmit} isLoading={isLoading} />
       <div className="separator-glow max-w-xl mx-auto" aria-hidden="true" />
       <AboutAuditor />
-      <div className="separator-glow max-w-xl mx-auto" aria-hidden="true" />
-      <AuditForm onSubmit={handleSubmit} isLoading={isLoading} />
     </main>
   );
 };
