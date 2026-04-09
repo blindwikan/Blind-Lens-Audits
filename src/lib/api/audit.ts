@@ -12,6 +12,14 @@ export interface SeverityCounts {
   minorIck: number;
 }
 
+export interface WaveStats {
+  totalErrors: number;
+  contrastErrors: number;
+  alerts: number;
+  features: number;
+  structuralElements: number;
+}
+
 export interface AuditResult {
   success: boolean;
   url: string;
@@ -19,6 +27,7 @@ export interface AuditResult {
   severityCounts: SeverityCounts;
   issues: AuditIssue[];
   closingSummary: string;
+  waveStats?: WaveStats;
 }
 
 export async function runAudit(url: string): Promise<AuditResult> {
