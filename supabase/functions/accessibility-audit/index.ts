@@ -33,6 +33,8 @@ serve(async (req) => {
       });
     }
 
+    const WAVE_API_KEY = Deno.env.get('WAVE_API_KEY');
+
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: 'AI not configured' }), {
@@ -46,17 +48,42 @@ serve(async (req) => {
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    console.log('Calling PageSpeed Insights for:', formattedUrl);
+    console.log('Calling PageSpeed + WAVE for:', formattedUrl);
 
+    // Run PageSpeed and WAVE in parallel
     const pagespeedUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&category=accessibility&key=${PAGESPEED_API_KEY}`;
-    const psResponse = await fetch(pagespeedUrl);
-    const psData = await psResponse.json();
+    const pagespeedPromise = fetch(pagespeedUrl).then(r => r.json());
 
-    if (!psResponse.ok || psData.error) {
-      console.error('PageSpeed error:', psData.error || psData);
+    let wavePromise: Promise<any> = Promise.resolve(null);
+    if (WAVE_API_KEY) {
+      const waveUrl = `https://wave.webaim.org/api/request?key=${WAVE_API_KEY}&url=${encodeURIComponent(formattedUrl)}&reporttype=2`;
+      wavePromise = fetch(waveUrl).then(r => r.json()).catch(e => {
+        console.error('WAVE error:', e);
+        return null;
+      });
+    }
+
+    const [psData, waveData] = await Promise.all([pagespeedPromise, wavePromise]);
+
+    if (psData.error) {
+      console.error('PageSpeed error:', psData.error);
       return new Response(JSON.stringify({ error: 'Failed to analyze the website. Please check the URL and try again.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Extract WAVE stats
+    let waveStats = null;
+    if (waveData?.categories) {
+      const cats = waveData.categories;
+      waveStats = {
+        totalErrors: cats.error?.count ?? 0,
+        contrastErrors: cats.contrast?.count ?? 0,
+        alerts: cats.alert?.count ?? 0,
+        features: cats.feature?.count ?? 0,
+        structuralElements: cats.structure?.count ?? 0,
+      };
+      console.log('WAVE stats:', JSON.stringify(waveStats));
     }
 
     // Extract accessibility score and audits
@@ -64,7 +91,6 @@ serve(async (req) => {
     const audits = psData.lighthouseResult?.audits || {};
     const auditRefs = psData.lighthouseResult?.categories?.accessibility?.auditRefs || [];
 
-    // Collect failed audits (score < 1 and not "not_applicable")
     const failedAudits = auditRefs
       .map((ref: any) => audits[ref.id])
       .filter((audit: any) => audit && audit.score !== null && audit.score < 1 && audit.scoreDisplayMode !== 'notApplicable')
@@ -198,6 +224,7 @@ For each issue above, write your Blind Lens interpretation. Then write a closing
       severityCounts,
       issues,
       closingSummary: auditResults.closingSummary,
+      ...(waveStats && { waveStats }),
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
