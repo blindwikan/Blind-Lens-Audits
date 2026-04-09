@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Shield, ArrowLeft, Calendar, CircleAlert, CircleDot, Circle } from "lucide-react";
+import { Shield, ArrowLeft, Calendar, CircleAlert, CircleDot, Circle, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AuditResult } from "@/lib/api/audit";
 
@@ -25,7 +25,7 @@ const item = {
 };
 
 const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
-  const { accessibilityScore, severityCounts, issues, closingSummary, url } = result;
+  const { accessibilityScore, severityCounts, issues, closingSummary, url, waveStats } = result;
 
   const scoreColor = accessibilityScore >= 90 ? "text-green-500" : accessibilityScore >= 50 ? "text-warning" : "text-destructive";
 
@@ -131,6 +131,46 @@ const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
             })}
           </ol>
         </motion.section>
+
+        {/* WAVE Accessibility Scan */}
+        {waveStats && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mb-12"
+            aria-labelledby="wave-heading"
+          >
+            <h2 id="wave-heading" className="text-2xl font-heading font-bold text-foreground mb-6 flex items-center gap-3">
+              <Waves className="w-6 h-6 text-primary" aria-hidden="true" />
+              WAVE Accessibility Scan
+            </h2>
+            <div className="bg-card border border-border rounded-2xl p-6 md:p-8">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-heading font-bold text-destructive mb-1">{waveStats.totalErrors}</div>
+                  <p className="text-sm text-muted-foreground font-medium">Errors</p>
+                </div>
+                <div className="bg-warning/5 border border-warning/20 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-heading font-bold text-warning mb-1">{waveStats.contrastErrors}</div>
+                  <p className="text-sm text-muted-foreground font-medium">Contrast Failures</p>
+                </div>
+                <div className="bg-warning/5 border border-warning/20 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-heading font-bold text-warning mb-1">{waveStats.alerts}</div>
+                  <p className="text-sm text-muted-foreground font-medium">Alerts</p>
+                </div>
+                <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-heading font-bold text-green-500 mb-1">{waveStats.features}</div>
+                  <p className="text-sm text-muted-foreground font-medium">Positive Features</p>
+                </div>
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-heading font-bold text-primary mb-1">{waveStats.structuralElements}</div>
+                  <p className="text-sm text-muted-foreground font-medium">Structural Elements</p>
+                </div>
+              </div>
+            </div>
+          </motion.section>
+        )}
 
         {/* Closing Summary */}
         {closingSummary && (
