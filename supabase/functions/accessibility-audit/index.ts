@@ -27,13 +27,12 @@ serve(async (req) => {
     }
 
     const PAGESPEED_API_KEY = Deno.env.get('PAGESPEED_API_KEY');
-    if (!PAGESPEED_API_KEY) {
-      return new Response(JSON.stringify({ error: 'PageSpeed API not configured' }), {
+    const WAVE_API_KEY = Deno.env.get('WAVE_API_KEY');
+    if (!WAVE_API_KEY) {
+      return new Response(JSON.stringify({ error: 'WAVE API not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    const WAVE_API_KEY = Deno.env.get('WAVE_API_KEY');
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
