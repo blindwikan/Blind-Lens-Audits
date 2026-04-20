@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Shield, ArrowLeft, Calendar, CircleAlert, CircleDot, Circle, Waves } from "lucide-react";
+import { ArrowLeft, Calendar, CircleAlert, CircleDot, Circle, Waves, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AuditResult } from "@/lib/api/audit";
 
