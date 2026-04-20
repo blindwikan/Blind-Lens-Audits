@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Shield, ArrowLeft, Calendar, CircleAlert, CircleDot, Circle, Waves } from "lucide-react";
+import { ArrowLeft, Calendar, CircleAlert, CircleDot, Circle, Waves, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AuditResult } from "@/lib/api/audit";
 
@@ -27,7 +27,7 @@ const item = {
 const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
   const { accessibilityScore, severityCounts, issues, closingSummary, url, waveStats } = result;
 
-  const scoreColor = accessibilityScore >= 90 ? "text-green-500" : accessibilityScore >= 50 ? "text-warning" : "text-destructive";
+  const scoreColor = accessibilityScore >= 90 ? "text-success" : accessibilityScore >= 50 ? "text-warning" : "text-destructive";
 
   return (
     <div className="min-h-screen bg-background py-8 px-6">
@@ -56,43 +56,75 @@ const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
           <p className="text-muted-foreground text-lg break-all">{url}</p>
         </motion.div>
 
-        {/* Score + Severity Tiers */}
+        {/* WAVE Accessibility Scan — PRIMARY */}
+        {waveStats && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mb-12"
+            aria-labelledby="wave-heading"
+          >
+            <h2 id="wave-heading" className="text-2xl font-heading font-bold text-foreground mb-6 flex items-center gap-3">
+              <Waves className="w-6 h-6 text-primary" aria-hidden="true" />
+              WAVE Accessibility Scan
+            </h2>
+            <div className="bg-card border border-border rounded-2xl p-6 md:p-8">
+              <p className="text-muted-foreground mb-6">
+                Detailed scan results from WebAIM's WAVE engine — the primary accessibility analysis for this report.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-heading font-bold text-destructive mb-1">{waveStats.totalErrors}</div>
+                  <p className="text-sm text-muted-foreground font-medium">Errors</p>
+                </div>
+                <div className="bg-warning/5 border border-warning/20 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-heading font-bold text-warning mb-1">{waveStats.contrastErrors}</div>
+                  <p className="text-sm text-muted-foreground font-medium">Contrast Failures</p>
+                </div>
+                <div className="bg-warning/5 border border-warning/20 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-heading font-bold text-warning mb-1">{waveStats.alerts}</div>
+                  <p className="text-sm text-muted-foreground font-medium">Alerts</p>
+                </div>
+                <div className="bg-accent/10 border border-accent/20 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-heading font-bold text-accent mb-1">{waveStats.features}</div>
+                  <p className="text-sm text-muted-foreground font-medium">Positive Features</p>
+                </div>
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-heading font-bold text-primary mb-1">{waveStats.structuralElements}</div>
+                  <p className="text-sm text-muted-foreground font-medium">Structural Elements</p>
+                </div>
+              </div>
+            </div>
+          </motion.section>
+        )}
+
+        {/* Severity Tiers */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.2 }}
           className="mb-12"
-          aria-labelledby="score-heading"
+          aria-labelledby="severity-heading"
         >
-          <h2 id="score-heading" className="text-2xl font-heading font-bold text-foreground mb-6 flex items-center gap-3">
-            <Shield className="w-6 h-6 text-primary" aria-hidden="true" />
-            Accessibility Score
+          <h2 id="severity-heading" className="text-2xl font-heading font-bold text-foreground mb-6">
+            Severity Breakdown
           </h2>
-          <div className="bg-card border border-border rounded-2xl p-6 md:p-8">
-            <div className="flex flex-col md:flex-row md:items-center gap-6 mb-8">
-              <div className={`text-5xl font-heading font-bold ${scoreColor}`}>{accessibilityScore}/100</div>
-              <p className="text-muted-foreground">
-                Based on Google PageSpeed Insights accessibility audit
-              </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 text-center">
+              <div className="text-3xl font-heading font-bold text-destructive mb-1">{severityCounts.redFlag}</div>
+              <p className="text-sm text-destructive/80 font-medium">🔴 Red Flags</p>
+              <p className="text-xs text-muted-foreground mt-1">Blocks access</p>
             </div>
-
-            {/* Severity tier breakdown */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 text-center">
-                <div className="text-3xl font-heading font-bold text-destructive mb-1">{severityCounts.redFlag}</div>
-                <p className="text-sm text-destructive/80 font-medium">🔴 Red Flags</p>
-                <p className="text-xs text-muted-foreground mt-1">Blocks access</p>
-              </div>
-              <div className="bg-warning/5 border border-warning/20 rounded-xl p-4 text-center">
-                <div className="text-3xl font-heading font-bold text-warning mb-1">{severityCounts.complicated}</div>
-                <p className="text-sm text-warning/80 font-medium">🟡 It's Complicated</p>
-                <p className="text-xs text-muted-foreground mt-1">Major friction</p>
-              </div>
-              <div className="bg-muted border border-border rounded-xl p-4 text-center">
-                <div className="text-3xl font-heading font-bold text-muted-foreground mb-1">{severityCounts.minorIck}</div>
-                <p className="text-sm text-muted-foreground font-medium">⚪ Minor Icks</p>
-                <p className="text-xs text-muted-foreground mt-1">Still workable</p>
-              </div>
+            <div className="bg-warning/5 border border-warning/20 rounded-xl p-4 text-center">
+              <div className="text-3xl font-heading font-bold text-warning mb-1">{severityCounts.complicated}</div>
+              <p className="text-sm text-warning/80 font-medium">🟡 It's Complicated</p>
+              <p className="text-xs text-muted-foreground mt-1">Major friction</p>
+            </div>
+            <div className="bg-muted border border-border rounded-xl p-4 text-center">
+              <div className="text-3xl font-heading font-bold text-muted-foreground mb-1">{severityCounts.minorIck}</div>
+              <p className="text-sm text-muted-foreground font-medium">⚪ Minor Icks</p>
+              <p className="text-xs text-muted-foreground mt-1">Still workable</p>
             </div>
           </div>
         </motion.section>
@@ -132,45 +164,29 @@ const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
           </ol>
         </motion.section>
 
-        {/* WAVE Accessibility Scan */}
-        {waveStats && (
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mb-12"
-            aria-labelledby="wave-heading"
-          >
-            <h2 id="wave-heading" className="text-2xl font-heading font-bold text-foreground mb-6 flex items-center gap-3">
-              <Waves className="w-6 h-6 text-primary" aria-hidden="true" />
-              WAVE Accessibility Scan
-            </h2>
-            <div className="bg-card border border-border rounded-2xl p-6 md:p-8">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 text-center">
-                  <div className="text-3xl font-heading font-bold text-destructive mb-1">{waveStats.totalErrors}</div>
-                  <p className="text-sm text-muted-foreground font-medium">Errors</p>
-                </div>
-                <div className="bg-warning/5 border border-warning/20 rounded-xl p-4 text-center">
-                  <div className="text-3xl font-heading font-bold text-warning mb-1">{waveStats.contrastErrors}</div>
-                  <p className="text-sm text-muted-foreground font-medium">Contrast Failures</p>
-                </div>
-                <div className="bg-warning/5 border border-warning/20 rounded-xl p-4 text-center">
-                  <div className="text-3xl font-heading font-bold text-warning mb-1">{waveStats.alerts}</div>
-                  <p className="text-sm text-muted-foreground font-medium">Alerts</p>
-                </div>
-                <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4 text-center">
-                  <div className="text-3xl font-heading font-bold text-green-500 mb-1">{waveStats.features}</div>
-                  <p className="text-sm text-muted-foreground font-medium">Positive Features</p>
-                </div>
-                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
-                  <div className="text-3xl font-heading font-bold text-primary mb-1">{waveStats.structuralElements}</div>
-                  <p className="text-sm text-muted-foreground font-medium">Structural Elements</p>
-                </div>
-              </div>
+        {/* PageSpeed — DEMOTED supporting signal */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mb-12"
+          aria-labelledby="pagespeed-heading"
+        >
+          <div className="bg-muted/40 border border-border rounded-xl p-5 flex items-center gap-4">
+            <Gauge className="w-5 h-5 text-muted-foreground shrink-0" aria-hidden="true" />
+            <div className="flex-1 min-w-0">
+              <h2 id="pagespeed-heading" className="text-sm font-semibold text-foreground">
+                Supporting signal: PageSpeed accessibility score
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Lighthouse's automated accessibility check — a rough indicator only.
+              </p>
             </div>
-          </motion.section>
-        )}
+            <div className={`text-2xl font-heading font-bold ${scoreColor} shrink-0`}>
+              {accessibilityScore}<span className="text-sm text-muted-foreground font-normal">/100</span>
+            </div>
+          </div>
+        </motion.section>
 
         {/* Closing Summary */}
         {closingSummary && (
