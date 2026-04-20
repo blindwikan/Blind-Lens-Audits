@@ -27,13 +27,12 @@ serve(async (req) => {
     }
 
     const PAGESPEED_API_KEY = Deno.env.get('PAGESPEED_API_KEY');
-    if (!PAGESPEED_API_KEY) {
-      return new Response(JSON.stringify({ error: 'PageSpeed API not configured' }), {
+    const WAVE_API_KEY = Deno.env.get('WAVE_API_KEY');
+    if (!WAVE_API_KEY) {
+      return new Response(JSON.stringify({ error: 'WAVE API not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    const WAVE_API_KEY = Deno.env.get('WAVE_API_KEY');
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -48,48 +47,47 @@ serve(async (req) => {
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    console.log('Calling PageSpeed + WAVE for:', formattedUrl);
+    console.log('Calling WAVE (primary) + PageSpeed accessibility (secondary) for:', formattedUrl);
 
-    // Run PageSpeed and WAVE in parallel
-    const pagespeedUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&category=accessibility&key=${PAGESPEED_API_KEY}`;
-    const pagespeedPromise = fetch(pagespeedUrl).then(r => r.json());
+    // WAVE = primary. PageSpeed accessibility = optional secondary.
+    const waveUrl = `https://wave.webaim.org/api/request?key=${WAVE_API_KEY}&url=${encodeURIComponent(formattedUrl)}&reporttype=2`;
+    const wavePromise = fetch(waveUrl).then(r => r.json());
 
-    let wavePromise: Promise<any> = Promise.resolve(null);
-    if (WAVE_API_KEY) {
-      const waveUrl = `https://wave.webaim.org/api/request?key=${WAVE_API_KEY}&url=${encodeURIComponent(formattedUrl)}&reporttype=2`;
-      wavePromise = fetch(waveUrl).then(r => r.json()).catch(e => {
-        console.error('WAVE error:', e);
+    let pagespeedPromise: Promise<any> = Promise.resolve(null);
+    if (PAGESPEED_API_KEY) {
+      const pagespeedUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&category=accessibility&key=${PAGESPEED_API_KEY}`;
+      pagespeedPromise = fetch(pagespeedUrl).then(r => r.json()).catch(e => {
+        console.error('PageSpeed error (silent):', e);
         return null;
       });
     }
 
-    const [psData, waveData] = await Promise.all([pagespeedPromise, wavePromise]);
+    const [waveData, psData] = await Promise.all([wavePromise, pagespeedPromise]);
 
-    if (psData.error) {
-      console.error('PageSpeed error:', psData.error);
-      return new Response(JSON.stringify({ error: 'Failed to analyze the website. Please check the URL and try again.' }), {
+    if (!waveData || waveData.status?.success === false || !waveData.categories) {
+      console.error('WAVE failed:', JSON.stringify(waveData));
+      return new Response(JSON.stringify({ error: 'Failed to analyze the website with WAVE. Please check the URL and try again.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Extract WAVE stats
-    let waveStats = null;
-    if (waveData?.categories) {
-      const cats = waveData.categories;
-      waveStats = {
-        totalErrors: cats.error?.count ?? 0,
-        contrastErrors: cats.contrast?.count ?? 0,
-        alerts: cats.alert?.count ?? 0,
-        features: cats.feature?.count ?? 0,
-        structuralElements: cats.structure?.count ?? 0,
-      };
-      console.log('WAVE stats:', JSON.stringify(waveStats));
-    }
+    // Extract WAVE stats (PRIMARY)
+    const cats = waveData.categories;
+    const waveStats = {
+      totalErrors: cats.error?.count ?? 0,
+      contrastErrors: cats.contrast?.count ?? 0,
+      alerts: cats.alert?.count ?? 0,
+      features: cats.feature?.count ?? 0,
+      structuralElements: cats.structure?.count ?? 0,
+    };
+    console.log('WAVE stats:', JSON.stringify(waveStats));
 
-    // Extract accessibility score and audits
-    const accessibilityScore = Math.round((psData.lighthouseResult?.categories?.accessibility?.score || 0) * 100);
-    const audits = psData.lighthouseResult?.audits || {};
-    const auditRefs = psData.lighthouseResult?.categories?.accessibility?.auditRefs || [];
+    // Extract Lighthouse accessibility audits (SECONDARY — supplementary checks only, no perf)
+    const accessibilityScore = psData
+      ? Math.round((psData.lighthouseResult?.categories?.accessibility?.score || 0) * 100)
+      : null;
+    const audits = psData?.lighthouseResult?.audits || {};
+    const auditRefs = psData?.lighthouseResult?.categories?.accessibility?.auditRefs || [];
 
     const failedAudits = auditRefs
       .map((ref: any) => audits[ref.id])
@@ -100,20 +98,24 @@ serve(async (req) => {
         description: audit.description,
         score: audit.score,
         displayValue: audit.displayValue || '',
-        details: audit.details?.items?.slice(0, 5) || [],
       }));
 
-    console.log(`PageSpeed: score ${accessibilityScore}, ${failedAudits.length} failed audits`);
+    console.log(`Lighthouse a11y: score ${accessibilityScore}, ${failedAudits.length} failed audits`);
 
-    // Step 2: Send to Gemini for Blind Lens interpretation
-    const userPrompt = `Here are the accessibility audit results from Google PageSpeed Insights for ${formattedUrl}.
+    // Step 2: Send WAVE (primary) + Lighthouse a11y (secondary) to Gemini for Blind Lens interpretation
+    const userPrompt = `Here are the accessibility scan results for ${formattedUrl}.
 
-Overall accessibility score: ${accessibilityScore}/100
+PRIMARY SCAN — WAVE by WebAIM:
+- Total errors: ${waveStats.totalErrors}
+- Contrast failures: ${waveStats.contrastErrors}
+- Alerts: ${waveStats.alerts}
+- Positive features: ${waveStats.features}
+- Structural elements: ${waveStats.structuralElements}
 
-Failed accessibility audits (${failedAudits.length} issues found):
-${failedAudits.map((a: any, i: number) => `${i + 1}. "${a.title}" (score: ${a.score}) — ${a.description}${a.displayValue ? ` [${a.displayValue}]` : ''}`).join('\n')}
+SECONDARY — Lighthouse accessibility audit failures (${failedAudits.length}):
+${failedAudits.map((a: any, i: number) => `${i + 1}. "${a.title}" — ${a.description}${a.displayValue ? ` [${a.displayValue}]` : ''}`).join('\n') || '(none / unavailable)'}
 
-For each issue above, write your Blind Lens interpretation. Then write a closing summary paragraph about the overall experience of using this website as a blind person.`;
+Treat WAVE as the primary lens. For each meaningful issue (combine WAVE categories and Lighthouse failures), write your Blind Lens interpretation. Then write a closing summary paragraph about the overall experience of using this website as a blind person, grounded primarily in the WAVE results.`;
 
     console.log('Sending to Gemini for Blind Lens interpretation...');
 
@@ -215,16 +217,16 @@ For each issue above, write your Blind Lens interpretation. Then write a closing
       minorIck: issues.filter((i: any) => i.severity === '⚪ Minor Ick').length,
     };
 
-    console.log('Audit complete:', accessibilityScore, 'score,', issues.length, 'issues');
+    console.log('Audit complete:', issues.length, 'issues, WAVE errors:', waveStats.totalErrors);
 
     return new Response(JSON.stringify({
       success: true,
       url: formattedUrl,
-      accessibilityScore,
+      waveStats,
       severityCounts,
       issues,
       closingSummary: auditResults.closingSummary,
-      ...(waveStats && { waveStats }),
+      lighthouse: psData ? { accessibilityScore, failedAudits } : null,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -20,14 +20,27 @@ export interface WaveStats {
   structuralElements: number;
 }
 
+export interface LighthouseAudit {
+  id: string;
+  title: string;
+  description: string;
+  score: number;
+  displayValue: string;
+}
+
+export interface LighthouseSummary {
+  accessibilityScore: number;
+  failedAudits: LighthouseAudit[];
+}
+
 export interface AuditResult {
   success: boolean;
   url: string;
-  accessibilityScore: number;
+  waveStats: WaveStats;
   severityCounts: SeverityCounts;
   issues: AuditIssue[];
   closingSummary: string;
-  waveStats?: WaveStats;
+  lighthouse: LighthouseSummary | null;
 }
 
 export async function runAudit(url: string): Promise<AuditResult> {
