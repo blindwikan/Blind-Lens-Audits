@@ -47,43 +47,40 @@ serve(async (req) => {
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    console.log('Calling PageSpeed + WAVE for:', formattedUrl);
+    console.log('Calling WAVE (primary) + PageSpeed accessibility (secondary) for:', formattedUrl);
 
-    // Run PageSpeed and WAVE in parallel
-    const pagespeedUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&category=accessibility&key=${PAGESPEED_API_KEY}`;
-    const pagespeedPromise = fetch(pagespeedUrl).then(r => r.json());
+    // WAVE = primary. PageSpeed accessibility = optional secondary.
+    const waveUrl = `https://wave.webaim.org/api/request?key=${WAVE_API_KEY}&url=${encodeURIComponent(formattedUrl)}&reporttype=2`;
+    const wavePromise = fetch(waveUrl).then(r => r.json());
 
-    let wavePromise: Promise<any> = Promise.resolve(null);
-    if (WAVE_API_KEY) {
-      const waveUrl = `https://wave.webaim.org/api/request?key=${WAVE_API_KEY}&url=${encodeURIComponent(formattedUrl)}&reporttype=2`;
-      wavePromise = fetch(waveUrl).then(r => r.json()).catch(e => {
-        console.error('WAVE error:', e);
+    let pagespeedPromise: Promise<any> = Promise.resolve(null);
+    if (PAGESPEED_API_KEY) {
+      const pagespeedUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&category=accessibility&key=${PAGESPEED_API_KEY}`;
+      pagespeedPromise = fetch(pagespeedUrl).then(r => r.json()).catch(e => {
+        console.error('PageSpeed error (silent):', e);
         return null;
       });
     }
 
-    const [psData, waveData] = await Promise.all([pagespeedPromise, wavePromise]);
+    const [waveData, psData] = await Promise.all([wavePromise, pagespeedPromise]);
 
-    if (psData.error) {
-      console.error('PageSpeed error:', psData.error);
-      return new Response(JSON.stringify({ error: 'Failed to analyze the website. Please check the URL and try again.' }), {
+    if (!waveData || waveData.status?.success === false || !waveData.categories) {
+      console.error('WAVE failed:', JSON.stringify(waveData));
+      return new Response(JSON.stringify({ error: 'Failed to analyze the website with WAVE. Please check the URL and try again.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Extract WAVE stats
-    let waveStats = null;
-    if (waveData?.categories) {
-      const cats = waveData.categories;
-      waveStats = {
-        totalErrors: cats.error?.count ?? 0,
-        contrastErrors: cats.contrast?.count ?? 0,
-        alerts: cats.alert?.count ?? 0,
-        features: cats.feature?.count ?? 0,
-        structuralElements: cats.structure?.count ?? 0,
-      };
-      console.log('WAVE stats:', JSON.stringify(waveStats));
-    }
+    // Extract WAVE stats (PRIMARY)
+    const cats = waveData.categories;
+    const waveStats = {
+      totalErrors: cats.error?.count ?? 0,
+      contrastErrors: cats.contrast?.count ?? 0,
+      alerts: cats.alert?.count ?? 0,
+      features: cats.feature?.count ?? 0,
+      structuralElements: cats.structure?.count ?? 0,
+    };
+    console.log('WAVE stats:', JSON.stringify(waveStats));
 
     // Extract accessibility score and audits
     const accessibilityScore = Math.round((psData.lighthouseResult?.categories?.accessibility?.score || 0) * 100);
