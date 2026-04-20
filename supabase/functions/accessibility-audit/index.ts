@@ -82,10 +82,12 @@ serve(async (req) => {
     };
     console.log('WAVE stats:', JSON.stringify(waveStats));
 
-    // Extract accessibility score and audits
-    const accessibilityScore = Math.round((psData.lighthouseResult?.categories?.accessibility?.score || 0) * 100);
-    const audits = psData.lighthouseResult?.audits || {};
-    const auditRefs = psData.lighthouseResult?.categories?.accessibility?.auditRefs || [];
+    // Extract Lighthouse accessibility audits (SECONDARY — supplementary checks only, no perf)
+    const accessibilityScore = psData
+      ? Math.round((psData.lighthouseResult?.categories?.accessibility?.score || 0) * 100)
+      : null;
+    const audits = psData?.lighthouseResult?.audits || {};
+    const auditRefs = psData?.lighthouseResult?.categories?.accessibility?.auditRefs || [];
 
     const failedAudits = auditRefs
       .map((ref: any) => audits[ref.id])
@@ -96,20 +98,24 @@ serve(async (req) => {
         description: audit.description,
         score: audit.score,
         displayValue: audit.displayValue || '',
-        details: audit.details?.items?.slice(0, 5) || [],
       }));
 
-    console.log(`PageSpeed: score ${accessibilityScore}, ${failedAudits.length} failed audits`);
+    console.log(`Lighthouse a11y: score ${accessibilityScore}, ${failedAudits.length} failed audits`);
 
-    // Step 2: Send to Gemini for Blind Lens interpretation
-    const userPrompt = `Here are the accessibility audit results from Google PageSpeed Insights for ${formattedUrl}.
+    // Step 2: Send WAVE (primary) + Lighthouse a11y (secondary) to Gemini for Blind Lens interpretation
+    const userPrompt = `Here are the accessibility scan results for ${formattedUrl}.
 
-Overall accessibility score: ${accessibilityScore}/100
+PRIMARY SCAN — WAVE by WebAIM:
+- Total errors: ${waveStats.totalErrors}
+- Contrast failures: ${waveStats.contrastErrors}
+- Alerts: ${waveStats.alerts}
+- Positive features: ${waveStats.features}
+- Structural elements: ${waveStats.structuralElements}
 
-Failed accessibility audits (${failedAudits.length} issues found):
-${failedAudits.map((a: any, i: number) => `${i + 1}. "${a.title}" (score: ${a.score}) — ${a.description}${a.displayValue ? ` [${a.displayValue}]` : ''}`).join('\n')}
+SECONDARY — Lighthouse accessibility audit failures (${failedAudits.length}):
+${failedAudits.map((a: any, i: number) => `${i + 1}. "${a.title}" — ${a.description}${a.displayValue ? ` [${a.displayValue}]` : ''}`).join('\n') || '(none / unavailable)'}
 
-For each issue above, write your Blind Lens interpretation. Then write a closing summary paragraph about the overall experience of using this website as a blind person.`;
+Treat WAVE as the primary lens. For each meaningful issue (combine WAVE categories and Lighthouse failures), write your Blind Lens interpretation. Then write a closing summary paragraph about the overall experience of using this website as a blind person, grounded primarily in the WAVE results.`;
 
     console.log('Sending to Gemini for Blind Lens interpretation...');
 
