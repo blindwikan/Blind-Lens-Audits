@@ -217,16 +217,16 @@ Treat WAVE as the primary lens. For each meaningful issue (combine WAVE categori
       minorIck: issues.filter((i: any) => i.severity === '⚪ Minor Ick').length,
     };
 
-    console.log('Audit complete:', accessibilityScore, 'score,', issues.length, 'issues');
+    console.log('Audit complete:', issues.length, 'issues, WAVE errors:', waveStats.totalErrors);
 
     return new Response(JSON.stringify({
       success: true,
       url: formattedUrl,
-      accessibilityScore,
+      waveStats,
       severityCounts,
       issues,
       closingSummary: auditResults.closingSummary,
-      ...(waveStats && { waveStats }),
+      lighthouse: psData ? { accessibilityScore, failedAudits } : null,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
