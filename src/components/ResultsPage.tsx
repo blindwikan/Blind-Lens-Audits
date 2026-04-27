@@ -1,8 +1,40 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, Calendar, CircleAlert, CircleDot, Circle, Waves, Gauge } from "lucide-react";
+import { ArrowLeft, Calendar, CircleAlert, CircleDot, Circle, Waves, Gauge, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { AuditResult } from "@/lib/api/audit";
+
+function calculateBlindLensScore(
+  waveStats: { totalErrors: number; contrastErrors: number; alerts: number },
+  lighthouse: { accessibilityScore: number } | null
+) {
+  // WAVE component (0-100), weight 70%
+  const wavePenalty =
+    waveStats.totalErrors * 6 +
+    waveStats.contrastErrors * 3 +
+    waveStats.alerts * 1;
+  const waveScore = Math.max(0, 100 - wavePenalty);
+
+  // Lighthouse component (0-100), weight 30%. If missing, use WAVE only.
+  const lhScore =
+    lighthouse && typeof lighthouse.accessibilityScore === "number"
+      ? Math.max(0, Math.min(100, lighthouse.accessibilityScore))
+      : null;
+
+  const combined =
+    lhScore === null ? waveScore : waveScore * 0.7 + lhScore * 0.3;
+
+  return Math.max(0, Math.min(100, Math.round(combined)));
+}
+
+function getScoreVerdict(score: number) {
+  if (score >= 90) return { label: "Excellent", tone: "text-success", ring: "border-success/40", bg: "bg-success/5" };
+  if (score >= 75) return { label: "Good", tone: "text-accent", ring: "border-accent/40", bg: "bg-accent/5" };
+  if (score >= 55) return { label: "Fair", tone: "text-warning", ring: "border-warning/40", bg: "bg-warning/5" };
+  if (score >= 35) return { label: "Poor", tone: "text-warning", ring: "border-warning/50", bg: "bg-warning/10" };
+  return { label: "Critical", tone: "text-destructive", ring: "border-destructive/50", bg: "bg-destructive/10" };
+}
 
 interface ResultsPageProps {
   result: AuditResult;
@@ -27,6 +59,9 @@ const item = {
 
 const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
   const { severityCounts, issues, closingSummary, url, waveStats, lighthouse } = result;
+
+  const blindLensScore = calculateBlindLensScore(waveStats, lighthouse);
+  const verdict = getScoreVerdict(blindLensScore);
 
   // WAVE-driven headline status
   const waveStatus =
@@ -62,6 +97,64 @@ const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
           </h1>
           <p className="text-muted-foreground text-lg break-all">{url}</p>
         </motion.div>
+
+        {/* Blind Lens Score — display-only headline metric */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="mb-10"
+          aria-labelledby="bls-heading"
+        >
+          <div className={`rounded-2xl border ${verdict.ring} ${verdict.bg} p-6 md:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6`}>
+            <div className="flex items-center gap-6">
+              <div
+                className={`shrink-0 w-28 h-28 md:w-32 md:h-32 rounded-full border-4 ${verdict.ring} bg-card flex items-center justify-center`}
+                role="img"
+                aria-label={`Blind Lens Score ${blindLensScore} out of 100, ${verdict.label}`}
+              >
+                <span className={`text-5xl md:text-6xl font-heading font-bold ${verdict.tone}`}>
+                  {blindLensScore}
+                </span>
+              </div>
+              <div>
+                <h2 id="bls-heading" className="text-sm uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                  Blind Lens Score
+                </h2>
+                <p className={`text-3xl font-heading font-bold ${verdict.tone}`}>{verdict.label}</p>
+                <p className="text-sm text-muted-foreground mt-1">out of 100</p>
+              </div>
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground underline underline-offset-4 self-start sm:self-center"
+                >
+                  <HelpCircle className="w-4 h-4" aria-hidden="true" />
+                  How is this calculated?
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 text-sm leading-relaxed">
+                <p className="font-semibold text-foreground mb-2">How the Blind Lens Score works</p>
+                <p className="text-muted-foreground mb-2">
+                  We start at 100 and subtract points based on what the scanners found:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-muted-foreground mb-2">
+                  <li><span className="text-foreground font-medium">WAVE errors</span>: −6 each (heaviest)</li>
+                  <li><span className="text-foreground font-medium">Contrast failures</span>: −3 each</li>
+                  <li><span className="text-foreground font-medium">Alerts</span>: −1 each</li>
+                </ul>
+                <p className="text-muted-foreground mb-2">
+                  That WAVE score is blended with Google Lighthouse's accessibility score: roughly <span className="text-foreground font-medium">70% WAVE</span> and <span className="text-foreground font-medium">30% Lighthouse</span>. If Lighthouse data isn't available, the score uses WAVE only.
+                </p>
+                <p className="text-muted-foreground">
+                  Verdicts: 90+ Excellent · 75+ Good · 55+ Fair · 35+ Poor · below 35 Critical.
+                </p>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </motion.section>
 
         {/* WAVE Accessibility Scan — PRIMARY headline */}
         <motion.section
