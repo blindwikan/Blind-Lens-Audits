@@ -3,6 +3,7 @@ import Hero from "@/components/Hero";
 import AboutAuditor from "@/components/AboutAuditor";
 import LoadingScreen from "@/components/LoadingScreen";
 import ResultsPage from "@/components/ResultsPage";
+import Footer from "@/components/Footer";
 import { runAudit, type AuditResult } from "@/lib/api/audit";
 import { toast } from "sonner";
 
@@ -34,7 +35,12 @@ const Index = () => {
 
   if (state === "loading") return <LoadingScreen />;
   if (state === "results" && auditResult) {
-    return <ResultsPage result={auditResult} onBack={handleBack} />;
+    return (
+      <>
+        <ResultsPage result={auditResult} onBack={handleBack} />
+        <Footer />
+      </>
+    );
   }
 
   return (
@@ -42,6 +48,7 @@ const Index = () => {
       <Hero onSubmit={handleSubmit} isLoading={isLoading} />
       <div className="separator-glow max-w-xl mx-auto" aria-hidden="true" />
       <AboutAuditor />
+      <Footer />
     </main>
   );
 };
