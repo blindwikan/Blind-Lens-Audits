@@ -60,6 +60,9 @@ const item = {
 const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
   const { severityCounts, issues, closingSummary, url, waveStats, lighthouse } = result;
 
+  const blindLensScore = calculateBlindLensScore(waveStats, lighthouse);
+  const verdict = getScoreVerdict(blindLensScore);
+
   // WAVE-driven headline status
   const waveStatus =
     waveStats.totalErrors === 0
