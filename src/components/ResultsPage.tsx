@@ -207,6 +207,18 @@ const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
               </div>
             </div>
           </div>
+          <p className="mt-4 text-sm text-muted-foreground">
+            WAVE accessibility data provided by{" "}
+            <a
+              href="https://wave.webaim.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:text-accent/80 underline underline-offset-2 font-medium transition-colors"
+            >
+              WebAIM
+            </a>
+            .
+          </p>
         </motion.section>
 
         {/* Severity Tiers — driven by Blind Lens issues */}
