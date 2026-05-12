@@ -328,6 +328,44 @@ const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
           </motion.section>
         )}
 
+        {/* Download Report */}
+        {(() => {
+          const domain = safeHostname(url);
+          const today = new Date();
+          const dateStr = today.toISOString().slice(0, 10);
+          const generatedAt = today.toLocaleString();
+          const fileName = `blind-lens-audit-${domain}-${dateStr}.pdf`;
+          return (
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="mb-8 text-center"
+              aria-label="Download report"
+            >
+              <PDFDownloadLink
+                document={
+                  <BlindLensReportPdf
+                    result={result}
+                    domain={domain}
+                    dateStr={dateStr}
+                    generatedAt={generatedAt}
+                  />
+                }
+                fileName={fileName}
+                className="inline-flex items-center justify-center gap-2 h-14 px-10 text-lg font-heading font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl glow-primary transition-colors"
+              >
+                {({ loading }) => (
+                  <>
+                    <Download className="w-5 h-5" aria-hidden="true" />
+                    {loading ? "Preparing PDF…" : "Download Report"}
+                  </>
+                )}
+              </PDFDownloadLink>
+            </motion.section>
+          );
+        })()}
+
         {/* Booking CTA */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
