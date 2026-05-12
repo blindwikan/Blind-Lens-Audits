@@ -1,39 +1,19 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, Calendar, CircleAlert, CircleDot, Circle, Waves, Gauge, HelpCircle } from "lucide-react";
+import { ArrowLeft, Calendar, CircleAlert, CircleDot, Circle, Waves, Gauge, HelpCircle, Download } from "lucide-react";
+import { PDFDownloadLink } from "@react-pdf/renderer";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { AuditResult } from "@/lib/api/audit";
+import { calculateBlindLensScore, getScoreVerdict } from "@/lib/pdf/scoreUtils";
+import { BlindLensReportPdf } from "@/lib/pdf/BlindLensReportPdf";
 
-function calculateBlindLensScore(
-  waveStats: { totalErrors: number; contrastErrors: number; alerts: number },
-  lighthouse: { accessibilityScore: number } | null
-) {
-  // WAVE component (0-100), weight 70%
-  const wavePenalty =
-    waveStats.totalErrors * 6 +
-    waveStats.contrastErrors * 3 +
-    waveStats.alerts * 1;
-  const waveScore = Math.max(0, 100 - wavePenalty);
-
-  // Lighthouse component (0-100), weight 30%. If missing, use WAVE only.
-  const lhScore =
-    lighthouse && typeof lighthouse.accessibilityScore === "number"
-      ? Math.max(0, Math.min(100, lighthouse.accessibilityScore))
-      : null;
-
-  const combined =
-    lhScore === null ? waveScore : waveScore * 0.7 + lhScore * 0.3;
-
-  return Math.max(0, Math.min(100, Math.round(combined)));
-}
-
-function getScoreVerdict(score: number) {
-  if (score >= 90) return { label: "Excellent", tone: "text-success", ring: "border-success/40", bg: "bg-success/5" };
-  if (score >= 75) return { label: "Good", tone: "text-accent", ring: "border-accent/40", bg: "bg-accent/5" };
-  if (score >= 55) return { label: "Fair", tone: "text-warning", ring: "border-warning/40", bg: "bg-warning/5" };
-  if (score >= 35) return { label: "Poor", tone: "text-warning", ring: "border-warning/50", bg: "bg-warning/10" };
-  return { label: "Critical", tone: "text-destructive", ring: "border-destructive/50", bg: "bg-destructive/10" };
+function safeHostname(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "").replace(/\./g, "-");
+  } catch {
+    return "site";
+  }
 }
 
 interface ResultsPageProps {
