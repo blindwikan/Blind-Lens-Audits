@@ -3,20 +3,33 @@ import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { validateUrl } from "@/lib/validateUrl";
 
 interface AuditFormProps {
   onSubmit: (url: string) => void;
   isLoading: boolean;
+  cooldown?: number; // seconds remaining before next audit is allowed
 }
 
-const AuditForm = ({ onSubmit, isLoading }: AuditFormProps) => {
+const AuditForm = ({ onSubmit, isLoading, cooldown = 0 }: AuditFormProps) => {
   const [url, setUrl] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (url.trim()) {
-      onSubmit(url.trim());
+    const validationError = validateUrl(url);
+    if (validationError) {
+      setError(validationError);
+      return;
     }
+    setError(null);
+    onSubmit(url.trim());
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUrl(e.target.value);
+    // Clear the error as soon as the user starts typing again
+    if (error) setError(null);
   };
 
   return (
@@ -37,27 +50,36 @@ const AuditForm = ({ onSubmit, isLoading }: AuditFormProps) => {
             </label>
             <Input
               id="website-url"
-              type="url"
+              type="text"
               placeholder="https://yourwebsite.com"
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              required
+              onChange={handleChange}
               disabled={isLoading}
               className="flex-1 h-14 text-base bg-card border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary rounded-xl px-5"
-              aria-describedby="url-hint"
+              aria-describedby={error ? "url-error" : "url-hint"}
+              aria-invalid={!!error}
             />
             <Button
               type="submit"
-              disabled={isLoading || !url.trim()}
+              disabled={isLoading || cooldown > 0}
               className="h-14 px-8 text-base font-heading font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl glow-primary transition-all"
+              aria-label={cooldown > 0 ? `Please wait ${cooldown} seconds before auditing again` : "Audit My Website"}
             >
-              Audit My Website
+              {cooldown > 0 ? `Wait ${cooldown}s` : "Audit My Website"}
               <ArrowRight className="ml-2 w-5 h-5" aria-hidden="true" />
             </Button>
           </form>
-          <p id="url-hint" className="text-sm text-muted-foreground mt-3 text-center">
-            Enter any public URL to receive a comprehensive accessibility audit
-          </p>
+
+          {/* Error message — shown inline so screen readers announce it immediately */}
+          {error ? (
+            <p id="url-error" role="alert" className="text-sm text-destructive mt-3 text-center">
+              {error}
+            </p>
+          ) : (
+            <p id="url-hint" className="text-sm text-muted-foreground mt-3 text-center">
+              Enter any public URL to receive a comprehensive accessibility audit
+            </p>
+          )}
         </motion.div>
       </div>
     </section>
