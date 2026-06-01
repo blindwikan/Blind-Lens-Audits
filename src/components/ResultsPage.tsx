@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, Calendar, CircleAlert, CircleDot, Circle, Waves, Gauge, HelpCircle, Download } from "lucide-react";
+import { ArrowLeft, Calendar, CircleAlert, CircleDot, Circle, Waves, Gauge, HelpCircle, Download, Info } from "lucide-react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -365,6 +365,35 @@ const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
             </motion.section>
           );
         })()}
+
+        {/* Limitations Disclosure */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55 }}
+          className="mb-8"
+          aria-labelledby="limitations-heading"
+        >
+          <div className="bg-muted/40 border border-border rounded-xl p-6">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" aria-hidden="true" />
+              <div>
+                <h2 id="limitations-heading" className="text-sm font-semibold text-foreground mb-2">
+                  About this report
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                  This audit uses automated scanning tools — WAVE by WebAIM and Google Lighthouse — to analyse your site's code. It catches common issues like missing alt text, contrast failures, unlabelled buttons, and structural problems.
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                  But automated tools have real limits. They cannot navigate your site, experience the actual screen reader flow, or detect issues with focus order, dynamic content, custom widgets, or how content is announced out loud to a blind user.
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  This report is a starting point — not the full picture. For a complete accessibility assessment, manual testing by a real blind user with a screen reader is strongly recommended.
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.section>
 
         {/* Booking CTA */}
         <motion.section
