@@ -405,10 +405,10 @@ const ResultsPage = ({ result, onBack }: ResultsPageProps) => {
         >
           <div className="bg-card border border-border rounded-2xl p-8 md:p-10 text-center">
             <h2 id="cta-heading" className="text-2xl md:text-3xl font-heading font-bold text-foreground mb-3">
-              Want to fix this?
+              Ready for the real test?
             </h2>
             <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
-              Book a 30-minute strategy call with Wikan and let's work through your accessibility issues together.
+              Automated tools scan code. They can't experience it. A real blind user can. Book a manual testing session with Wikan.
             </p>
             <Button
               asChild
